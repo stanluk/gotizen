@@ -6,7 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 )
+
+var securityProfile string
 
 var packageCmd = &Command{
 	Run:       MakePkg,
@@ -17,8 +20,18 @@ var packageCmd = &Command{
 	`,
 }
 
+const (
+	BinDir = "bin"
+	ResDir = "res"
+)
+
 type diskFile struct {
-	path string
+	realPath string // path relative to project root dir
+	path     string // path relative to package root dir
+}
+
+func init() {
+	packageCmd.Flag.StringVar(&securityProfile, "profile", "", "Security profile used to sign package")
 }
 
 func (this *diskFile) Path() string {
@@ -26,7 +39,7 @@ func (this *diskFile) Path() string {
 }
 
 func (this *diskFile) WriteContent(w io.Writer) error {
-	file, err := os.Open(this.path)
+	file, err := os.Open(this.realPath)
 	if err != nil {
 		return fmt.Errorf("Unable to write file content: %v", err)
 	}
@@ -35,34 +48,32 @@ func (this *diskFile) WriteContent(w io.Writer) error {
 	return err
 }
 
-// create a list of information for package described in
-// in context parameter
-func listPackageFiles(context *Context) ([]PackageFile, error) {
-	var files []PackageFile
-
-	if context.Manifest == nil {
-		return nil, fmt.Errorf("Unable to query manifest.")
-	}
-
-	// 1. Manifest
-	files = append(files, context.Manifest)
-
-	for _, p := range context.Manifest.UIAppEntries {
-		// 2. Binary files
+// create a list of package files described in manifest
+func makeFileList(manifest *TizenManifest) (files []PackageFile) {
+	for _, p := range manifest.UIAppEntries {
+		var df diskFile
+		// 1. Binary files
 		if p.Exec != "" {
-			files = append(files, &diskFile{p.Exec})
+			df.path = path.Join(BinDir, p.Exec)
+			df.realPath = p.Exec
+			files = append(files, &df)
 		}
-		// 3. Icons
+		// 2. Icons
 		if p.Icon != "" {
-			files = append(files, &diskFile{p.Exec})
+			df.path = path.Join(ResDir, p.Exec)
+			df.realPath = p.Exec
+			files = append(files, &df)
 		}
 	}
-	return files, nil
+
+	// 3. append manifest itself
+	files = append(files, manifest)
+	return files
 }
 
-// createZipArchive creates new zip package from files data
-// and writes raw byte content int 'out' writer.
-func createZipArchive(files []PackageFile, out io.Writer) error {
+// writePackageFiles creates new zip package
+// and writes raw byte content if files into 'out' writer.
+func writePackageFiles(files []PackageFile, out io.Writer) error {
 	arch := zip.NewWriter(out)
 	for _, file := range files {
 		w, err := arch.Create(file.Path())
@@ -84,18 +95,17 @@ func MakePkg(context *Context) {
 	if context.Manifest == nil {
 		log.Fatal("No manifest file found in ", context.ProjectPath)
 	}
-	archFiles, err := listPackageFiles(context)
-	if err != nil {
-		log.Fatal(err)
-	}
-	zip, err := os.OpenFile("package.tpk", os.O_CREATE|os.O_RDWR, 0644)
+	zip, err := os.OpenFile(context.Manifest.PackageName+".tpk", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		log.Fatal("Unable to create 'tpk' file: ", err)
 	}
 	defer zip.Close()
-	err = createZipArchive(archFiles, zip)
+
+	all_files := makeFileList(context.Manifest)
+
+	err = writePackageFiles(all_files, zip)
 	if err != nil {
-		log.Fatal("Unable to create 'tpk' file: ", err)
+		log.Fatalf("Unable to create '%s' file: %v", zip.Name(), err)
 	}
-	fmt.Println("Created package.tpk in ", context.ProjectPath)
+	fmt.Printf("Created %s in %s\n", zip.Name(), context.ProjectPath)
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lestrrat/go-xmlsec"
+	_ "github.com/lestrrat/go-xmlsec"
 	_ "github.com/lestrrat/go-xmlsec/dsig"
 	"io"
 )
@@ -14,11 +14,13 @@ type Signature struct {
 }
 
 func (this *Signature) MarshalXMLSignature(writer io.Writer) error {
-	if err := xmlsec.Init(); err != nil {
-		return err
-	}
+	/*
+		if err := xmlsec.Init(); err != nil {
+			return err
+		}
 
-	defer xmlsec.Shutdown()
+		defer xmlsec.Shutdown()
+	*/
 	return nil
 }
 
