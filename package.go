@@ -28,6 +28,7 @@ const (
 type diskFile struct {
 	realPath string // path relative to project root dir
 	path     string // path relative to package root dir
+	file     *os.File
 }
 
 func init() {
@@ -38,14 +39,12 @@ func (this *diskFile) Path() string {
 	return this.path
 }
 
-func (this *diskFile) WriteContent(w io.Writer) error {
+func (this *diskFile) GetReader() (io.ReadCloser, error) {
 	file, err := os.Open(this.realPath)
 	if err != nil {
-		return fmt.Errorf("Unable to write file content: %v", err)
+		return nil, fmt.Errorf("Unable to write file content: %v", err)
 	}
-	_, err = io.Copy(w, file)
-	file.Close()
-	return err
+	return file, nil
 }
 
 // create a list of package files described in manifest
@@ -82,10 +81,15 @@ func writePackageFiles(files []PackageFile, out io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("Unable to create archive: %v", err)
 		}
-		err = file.WriteContent(w)
+		reader, err := file.GetReader()
 		if err != nil {
-			return fmt.Errorf("Unable to create archive: %v", err)
+			return fmt.Errorf("Unable to get reader")
 		}
+		_, err = io.Copy(w, reader)
+		if err != nil {
+			return fmt.Errorf("Copy failed")
+		}
+		reader.Close()
 		if err != nil {
 			return fmt.Errorf("Unable to create archive: %v", err)
 		}

@@ -19,8 +19,8 @@ type Command struct {
 }
 
 type PackageFile interface {
-	Path() string                   /* Path relative to project root directory */
-	WriteContent(w io.Writer) error /* Write package file content */
+	GetReader() (io.ReadCloser, error) /* Get io.Reader */
+	Path() string                      /* Path relative to project root directory */
 }
 
 var commands = []*Command{

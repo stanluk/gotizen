@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -49,16 +50,20 @@ func NewTizenManifest(name string) *TizenManifest {
 	}
 }
 
-func (this *TizenManifest) WriteContent(writer io.Writer) error {
-	bytes, err := xml.MarshalIndent(this, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, err = writer.Write(bytes)
-	if err != nil {
-		return fmt.Errorf("Unable to write file content: %v", err)
-	}
+type manifestReaderCloser struct {
+	*bytes.Buffer
+}
+
+func (this *manifestReaderCloser) Close() error {
 	return nil
+}
+
+func (this *TizenManifest) GetReader() (io.ReadCloser, error) {
+	buf, err := xml.MarshalIndent(this, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &manifestReaderCloser{Buffer: bytes.NewBuffer(buf)}, nil
 }
 
 func (this *TizenManifest) Path() string {

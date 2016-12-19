@@ -22,8 +22,6 @@ type reference struct {
 }
 
 func NewSignature(files []PackageFile) (*Signature, error) {
-	for _, file := range files {
-	}
 	return nil, nil
 }
 
@@ -31,8 +29,8 @@ func (this *Signature) Path() string {
 	return "author-signature.xml"
 }
 
-func (this *Signature) WriteContent(writer io.Writer) error {
-	return nil
+func (this *Signature) GetReader() (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func createReference(uri string, reader io.Reader) (*reference, error) {

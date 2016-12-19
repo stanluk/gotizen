@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -35,9 +36,15 @@ func createProjectFiles(ctx *Context, files []PackageFile) error {
 		if err != nil {
 			return fmt.Errorf("Unable to write %s, aborting\n", pf.Path())
 		}
-		if err := pf.WriteContent(file); err != nil {
-			return fmt.Errorf("Unable to create content")
+		reader, err := pf.GetReader()
+		if err != nil {
+			return fmt.Errorf("Unable to get reader")
 		}
+		_, err = io.Copy(file, reader)
+		if err != nil {
+			return fmt.Errorf("Copy failed")
+		}
+		reader.Close()
 		fmt.Println("Created: ", pf.Path())
 		file.Close()
 	}
