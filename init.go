@@ -29,26 +29,23 @@ func hasTizenProjectFiles(rootPath string, files []PackageFile) bool {
 }
 
 // creates all project files
-func createProjectFiles(ctx *Context, files []PackageFile) error {
-	for _, pf := range files {
-		full_path := filepath.Join(ctx.ProjectPath, pf.Path())
-		file, err := os.Create(full_path)
-		if err != nil {
-			return fmt.Errorf("Unable to write %s, aborting\n", pf.Path())
-		}
-		reader, err := pf.GetReader()
-		if err != nil {
-			return fmt.Errorf("Unable to get reader")
-		}
-		_, err = io.Copy(file, reader)
-		if err != nil {
-			return fmt.Errorf("Copy failed")
-		}
-		reader.Close()
-		fmt.Println("Created: ", pf.Path())
-		file.Close()
+func createFile(rootdir string, file PackageFile) error {
+	full_path := filepath.Join(rootdir, file.Path())
+	f, err := os.Create(full_path)
+	if err != nil {
+		return fmt.Errorf("Unable to write %s, aborting\n", file.Path())
 	}
-	return nil
+	reader, err := file.GetReader()
+	if err != nil {
+		return fmt.Errorf("Unable to get reader")
+	}
+	_, err = io.Copy(f, reader)
+	if err != nil {
+		return fmt.Errorf("Copy failed")
+	}
+	reader.Close()
+	fmt.Println("Created: ", file.Path())
+	return f.Close()
 }
 
 func initProject(context *Context) {
@@ -61,7 +58,10 @@ func initProject(context *Context) {
 	defaultProjectFiles[0] = defaultManifest
 	fmt.Println("Initialized empty Tizen project in: ", context.ProjectPath)
 
-	if err := createProjectFiles(context, defaultProjectFiles); err != nil {
-		log.Fatal("Unable to create Tizen project files: ", err)
+	// create project files
+	for _, pf := range defaultProjectFiles {
+		if err := createFile(context.ProjectPath, pf); err != nil {
+			log.Fatal("Unable to create Tizen project files: ", err)
+		}
 	}
 }

@@ -1,19 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
+	"log"
+	"os"
+	"os/exec"
 )
 
 // date required to make xml signature
 type Signature struct {
-	AuthorCertificate      []byte
-	DistributorCertificate []byte
-	references             []reference
+	AuthorCertificate string
+	AuthorPass        string
+	references        []*reference
 }
 
 type reference struct {
@@ -21,16 +25,65 @@ type reference struct {
 	Digest string
 }
 
-func NewSignature(files []PackageFile) (*Signature, error) {
-	return nil, nil
+func NewSignature(files []PackageFile) (sig *Signature, err error) {
+	sig = &Signature{}
+	for _, file := range files {
+		rc, err := file.GetReader()
+		if err != nil {
+			return nil, err
+		}
+		ref, err := createReference(file.Path(), rc)
+		rc.Close()
+		if err != nil {
+			return nil, err
+		}
+		sig.references = append(sig.references, ref)
+	}
+	return sig, nil
 }
 
 func (this *Signature) Path() string {
 	return "author-signature.xml"
 }
 
+// simple wrapper aroung bytes.Buffer to support io.ReadCloser
+type signatureBuffer struct {
+	*bytes.Buffer
+}
+
+func (this *signatureBuffer) Close() error {
+	return nil
+}
+
 func (this *Signature) GetReader() (io.ReadCloser, error) {
-	return nil, nil
+	buf := &bytes.Buffer{}
+	if err := authorSignatureTmpl.Execute(buf, this.references); err != nil {
+		return nil, fmt.Errorf("Template execute failed: ", err)
+	}
+	file, err := ioutil.TempFile("/tmp/", "signtmp")
+	if err != nil {
+		return nil, fmt.Errorf("TempFile failed: ", err)
+	}
+	_, err = io.Copy(file, buf)
+	if err != nil {
+		file.Close()
+		return nil, fmt.Errorf("TempFile failed: ", err)
+	}
+	file.Sync()
+	log.Print("Opening file: ", file.Name())
+	cmd := exec.Command("xmlsec1", "--sign", "--output", this.Path(), "--pkcs12", this.AuthorCertificate, "--pwd", this.AuthorPass, file.Name())
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	file.Close()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to run xmlsec1: %s", stderr.String())
+	}
+	file, err = os.Open(this.Path())
+	if err != nil {
+		return nil, fmt.Errorf("Open failed: ", err)
+	}
+	return file, nil
 }
 
 func createReference(uri string, reader io.Reader) (*reference, error) {
@@ -51,11 +104,12 @@ var authorSignatureTmpl = template.Must(template.New("author-signature").Parse(`
 <SignedInfo>
 <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></CanonicalizationMethod>
 <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod>
-
+{{range .}}
 <Reference URI="{{.Uri}}">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod>
 <DigestValue>{{.Digest}}</DigestValue>
-
+</Reference>
+{{end}}
 <Reference URI="#prop">
 <Transforms>
 <Transform Algorithm="http://www.w3.org/2006/12/xml-c14n11"></Transform>
@@ -64,7 +118,6 @@ var authorSignatureTmpl = template.Must(template.New("author-signature").Parse(`
 <DigestValue></DigestValue>
 </Reference>
 </SignedInfo>
-
 <SignatureValue>
 </SignatureValue>
 <KeyInfo>

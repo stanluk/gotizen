@@ -9,7 +9,8 @@ import (
 	"path"
 )
 
-var securityProfile string // indentifier of security profile
+var certificateFile string // indentifier of security profile
+var certificatePass string // indentifier of security profile
 
 var packageCmd = &Command{
 	Run:       MakePkg,
@@ -32,7 +33,8 @@ type diskFile struct {
 }
 
 func init() {
-	packageCmd.Flag.StringVar(&securityProfile, "profile", "", "Security profile used to sign package")
+	packageCmd.Flag.StringVar(&certificateFile, "profile", "", "Security profile used to sign package")
+	packageCmd.Flag.StringVar(&certificatePass, "password", "", "Security profile used to sign package")
 }
 
 func (this *diskFile) Path() string {
@@ -83,7 +85,7 @@ func writePackageFiles(files []PackageFile, out io.Writer) error {
 		}
 		reader, err := file.GetReader()
 		if err != nil {
-			return fmt.Errorf("Unable to get reader")
+			return fmt.Errorf("Unable to get reader %v", err)
 		}
 		_, err = io.Copy(w, reader)
 		if err != nil {
@@ -98,8 +100,15 @@ func writePackageFiles(files []PackageFile, out io.Writer) error {
 }
 
 func createSignature(profile string, files []PackageFile) (*Signature, error) {
-	sig := &Signature{}
-	return sig, nil
+	s, err := NewSignature(files)
+	if err != nil {
+		return nil, err
+	}
+
+	s.AuthorCertificate = certificateFile
+	s.AuthorPass = certificatePass
+
+	return s, nil
 }
 
 func MakePkg(context *Context) {
@@ -114,7 +123,7 @@ func MakePkg(context *Context) {
 
 	all_files := makeFileList(context.Manifest)
 
-	signature, err := createSignature(securityProfile, all_files)
+	signature, err := createSignature(certificateFile, all_files)
 	if err != nil {
 		log.Fatal("Unable to sign package, ", err)
 	}
