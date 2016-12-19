@@ -9,7 +9,7 @@ import (
 	"path"
 )
 
-var securityProfile string
+var securityProfile string // indentifier of security profile
 
 var packageCmd = &Command{
 	Run:       MakePkg,
@@ -49,6 +49,8 @@ func (this *diskFile) WriteContent(w io.Writer) error {
 }
 
 // create a list of package files described in manifest
+// gotizen do not use any hand-creafted build configuration files,
+// so only source of information about packages is tizen-manifest.xml
 func makeFileList(manifest *TizenManifest) (files []PackageFile) {
 	for _, p := range manifest.UIAppEntries {
 		var df diskFile
@@ -91,6 +93,11 @@ func writePackageFiles(files []PackageFile, out io.Writer) error {
 	return arch.Close()
 }
 
+func createSignature(profile string, files []PackageFile) (*Signature, error) {
+	sig := &Signature{}
+	return sig, nil
+}
+
 func MakePkg(context *Context) {
 	if context.Manifest == nil {
 		log.Fatal("No manifest file found in ", context.ProjectPath)
@@ -102,6 +109,12 @@ func MakePkg(context *Context) {
 	defer zip.Close()
 
 	all_files := makeFileList(context.Manifest)
+
+	signature, err := createSignature(securityProfile, all_files)
+	if err != nil {
+		log.Fatal("Unable to sign package, ", err)
+	}
+	all_files = append(all_files, signature)
 
 	err = writePackageFiles(all_files, zip)
 	if err != nil {
