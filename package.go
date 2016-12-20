@@ -9,8 +9,10 @@ import (
 	"path"
 )
 
-var certificateFile string // indentifier of security profile
-var certificatePass string // indentifier of security profile
+var authorCertificateFile string      // indentifier of security profile
+var authorCertificatePass string      // indentifier of security profile
+var distributorCertificateFile string // indentifier of security profile
+var distributorCertificatePass string // indentifier of security profile
 
 var packageCmd = &Command{
 	Run:       MakePkg,
@@ -33,8 +35,10 @@ type diskFile struct {
 }
 
 func init() {
-	packageCmd.Flag.StringVar(&certificateFile, "profile", "", "Security profile used to sign package")
-	packageCmd.Flag.StringVar(&certificatePass, "password", "", "Security profile used to sign package")
+	packageCmd.Flag.StringVar(&authorCertificateFile, "author-cert", "", "Security profile used to sign package")
+	packageCmd.Flag.StringVar(&authorCertificatePass, "author-passwd", "", "Security profile used to sign package")
+	packageCmd.Flag.StringVar(&distributorCertificateFile, "dist-cert", "", "Security profile used to sign package")
+	packageCmd.Flag.StringVar(&distributorCertificatePass, "dist-passwd", "", "Security profile used to sign package")
 }
 
 func (this *diskFile) Path() string {
@@ -99,14 +103,19 @@ func writePackageFiles(files []PackageFile, out io.Writer) error {
 	return arch.Close()
 }
 
-func createSignature(profile string, files []PackageFile) (*Signature, error) {
-	s, err := NewSignature(files)
+func createSignature(name SignatureType, files []PackageFile) (*Signature, error) {
+	s, err := NewSignature(name, files)
 	if err != nil {
 		return nil, err
 	}
 
-	s.AuthorCertificate = certificateFile
-	s.AuthorPass = certificatePass
+	if name == AuthorSignature {
+		s.AuthorCertificate = authorCertificateFile
+		s.AuthorPass = authorCertificatePass
+	} else if name == DistributorSignature {
+		s.AuthorCertificate = distributorCertificateFile
+		s.AuthorPass = distributorCertificatePass
+	}
 
 	return s, nil
 }
@@ -123,11 +132,17 @@ func MakePkg(context *Context) {
 
 	all_files := makeFileList(context.Manifest)
 
-	signature, err := createSignature(certificateFile, all_files)
+	authorSignature, err := createSignature(AuthorSignature, all_files)
 	if err != nil {
 		log.Fatal("Unable to sign package, ", err)
 	}
-	all_files = append(all_files, signature)
+	all_files = append(all_files, authorSignature)
+
+	distributorSignature, err := createSignature(DistributorSignature, all_files)
+	if err != nil {
+		log.Fatal("Unable to sign package, ", err)
+	}
+	all_files = append(all_files, distributorSignature)
 
 	err = writePackageFiles(all_files, zip)
 	if err != nil {

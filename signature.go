@@ -18,14 +18,22 @@ type Signature struct {
 	AuthorCertificate string
 	AuthorPass        string
 	references        []*reference
+	name              SignatureType
 }
+
+type SignatureType string
+
+var (
+	AuthorSignature      SignatureType = "author-signature.xml"
+	DistributorSignature SignatureType = "signature1.xml"
+)
 
 type reference struct {
 	Uri    string
 	Digest string
 }
 
-func NewSignature(files []PackageFile) (sig *Signature, err error) {
+func NewSignature(name SignatureType, files []PackageFile) (sig *Signature, err error) {
 	sig = &Signature{}
 	for _, file := range files {
 		rc, err := file.GetReader()
@@ -39,11 +47,12 @@ func NewSignature(files []PackageFile) (sig *Signature, err error) {
 		}
 		sig.references = append(sig.references, ref)
 	}
+	sig.name = name
 	return sig, nil
 }
 
 func (this *Signature) Path() string {
-	return "author-signature.xml"
+	return string(this.name)
 }
 
 // simple wrapper aroung bytes.Buffer to support io.ReadCloser
@@ -57,8 +66,15 @@ func (this *signatureBuffer) Close() error {
 
 func (this *Signature) GetReader() (io.ReadCloser, error) {
 	buf := &bytes.Buffer{}
-	if err := authorSignatureTmpl.Execute(buf, this.references); err != nil {
-		return nil, fmt.Errorf("Template execute failed: ", err)
+
+	if this.name == AuthorSignature {
+		if err := authorSignatureTmpl.Execute(buf, this.references); err != nil {
+			return nil, fmt.Errorf("Template execute failed: ", err)
+		}
+	} else if this.name == DistributorSignature {
+		if err := distributorSignatureTmpl.Execute(buf, this.references); err != nil {
+			return nil, fmt.Errorf("Template execute failed: ", err)
+		}
 	}
 	file, err := ioutil.TempFile("/tmp/", "signtmp")
 	if err != nil {
@@ -127,5 +143,36 @@ var authorSignatureTmpl = template.Must(template.New("author-signature").Parse(`
 </X509Data>
 </KeyInfo>
 <Object Id="prop"><SignatureProperties xmlns:dsp="http://www.w3.org/2009/xmldsig-properties"><SignatureProperty Id="profile" Target="#AuthorSignature"><dsp:Profile URI="http://www.w3.org/ns/widgets-digsig#profile"></dsp:Profile></SignatureProperty><SignatureProperty Id="role" Target="#AuthorSignature"><dsp:Role URI="http://www.w3.org/ns/widgets-digsig#role-author"></dsp:Role></SignatureProperty><SignatureProperty Id="identifier" Target="#AuthorSignature"><dsp:Identifier></dsp:Identifier></SignatureProperty></SignatureProperties></Object>
+</Signature>
+`))
+
+var distributorSignatureTmpl = template.Must(template.New("signature1").Parse(`
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#" Id="DistributorSignature">
+<SignedInfo>
+<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></CanonicalizationMethod>
+<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod>
+{{range .}}
+<Reference URI="{{.Uri}}">
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod>
+<DigestValue>{{.Digest}}</DigestValue>
+</Reference>
+{{end}}
+<Reference URI="#prop">
+<Transforms>
+<Transform Algorithm="http://www.w3.org/2006/12/xml-c14n11"></Transform>
+</Transforms>
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod>
+<DigestValue></DigestValue>
+</Reference>
+</SignedInfo>
+<SignatureValue>
+</SignatureValue>
+<KeyInfo>
+<X509Data>
+<X509Certificate>
+</X509Certificate>
+</X509Data>
+</KeyInfo>
+<Object Id="prop"><SignatureProperties xmlns:dsp="http://www.w3.org/2009/xmldsig-properties"><SignatureProperty Id="profile" Target="#DistributorSignature"><dsp:Profile URI="http://www.w3.org/ns/widgets-digsig#profile"></dsp:Profile></SignatureProperty><SignatureProperty Id="role" Target="#DistributorSignature"><dsp:Role URI="http://www.w3.org/ns/widgets-digsig#role-distributor"></dsp:Role></SignatureProperty><SignatureProperty Id="identifier" Target="#DistributorSignature"><dsp:Identifier></dsp:Identifier></SignatureProperty></SignatureProperties></Object>
 </Signature>
 `))
