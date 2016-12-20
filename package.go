@@ -77,6 +77,21 @@ func makeFileList(manifest *TizenManifest) (files []PackageFile, err error) {
 
 	// append manifest itself
 	files = append(files, manifest)
+
+	// append author signature
+	authorSignature, err := createSignature(AuthorSignature, files)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, authorSignature)
+
+	// append distributor signature
+	distributorSignature, err := createSignature(DistributorSignature, files)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, distributorSignature)
+
 	return files, nil
 }
 
@@ -134,18 +149,6 @@ func MakePkg(context *Context) {
 	if err != nil {
 		log.Fatal("Failed to create files list\n", err)
 	}
-
-	authorSignature, err := createSignature(AuthorSignature, all_files)
-	if err != nil {
-		log.Fatal("Unable to sign package, ", err)
-	}
-	all_files = append(all_files, authorSignature)
-
-	distributorSignature, err := createSignature(DistributorSignature, all_files)
-	if err != nil {
-		log.Fatal("Unable to sign package, ", err)
-	}
-	all_files = append(all_files, distributorSignature)
 
 	err = writePackageFiles(all_files, zip)
 	if err != nil {
