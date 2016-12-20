@@ -41,11 +41,11 @@ func init() {
 	packageCmd.Flag.StringVar(&distributorCertificatePass, "dist-passwd", "", "Security profile used to sign package")
 }
 
-func (this *diskFile) Path() string {
+func (this *diskFile) PackagePath() string {
 	return this.path
 }
 
-func (this *diskFile) GetReader() (io.ReadCloser, error) {
+func (this *diskFile) GetReadCloser() (io.ReadCloser, error) {
 	file, err := os.Open(this.realPath)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to write file content: %v", err)
@@ -100,11 +100,11 @@ func makeFileList(manifest *TizenManifest) (files []PackageFile) {
 func writePackageFiles(files []PackageFile, out io.Writer) error {
 	arch := zip.NewWriter(out)
 	for _, file := range files {
-		w, err := arch.Create(file.Path())
+		w, err := arch.Create(file.PackagePath())
 		if err != nil {
 			return fmt.Errorf("Unable to create archive: %v", err)
 		}
-		reader, err := file.GetReader()
+		reader, err := file.GetReadCloser()
 		if err != nil {
 			return fmt.Errorf("Unable to get reader %v", err)
 		}

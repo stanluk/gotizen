@@ -12,8 +12,8 @@ const (
 )
 
 // tizen-manifest path relative to project directory
-var TizenManifestDefaultPath string = "tizen-manifest.xml"
-var tizenNamespace string = "http://tizen.org/ns/packages"
+var TizenManifestDefaultPath = "tizen-manifest.xml"
+var tizenNamespace = "http://tizen.org/ns/packages"
 
 type TizenManifest struct {
 	XMLName           xml.Name      `xml:"manifest"`
@@ -71,22 +71,24 @@ type manifestReaderCloser struct {
 	*bytes.Buffer
 }
 
-func (this *manifestReaderCloser) Close() error {
+func (manif *manifestReaderCloser) Close() error {
 	return nil
 }
 
-func (this *TizenManifest) GetReader() (io.ReadCloser, error) {
-	buf, err := xml.MarshalIndent(this, "", "  ")
+func (manif *TizenManifest) GetReadCloser() (io.ReadCloser, error) {
+	buf, err := xml.MarshalIndent(manif, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 	return &manifestReaderCloser{Buffer: bytes.NewBuffer(buf)}, nil
 }
 
-func (this *TizenManifest) Path() string {
+func (manif *TizenManifest) PackagePath() string {
 	return TizenManifestDefaultPath
 }
 
+// LoadManifest constructs TizenManifest structure form binary
+// xml representation
 func LoadManifest(reader io.Reader) (*TizenManifest, error) {
 	var manifest TizenManifest
 	dec := xml.NewDecoder(reader)

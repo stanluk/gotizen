@@ -9,6 +9,7 @@ import (
 	"text/template"
 )
 
+// Command implement basic operation of gotizen tool
 type Command struct {
 	Run       func(context *Context)
 	Flag      flag.FlagSet
@@ -18,9 +19,11 @@ type Command struct {
 	Long      string
 }
 
+// PackageFile interface should be inmplemented by a entity
+// that can be containted in tizen package.
 type PackageFile interface {
-	GetReader() (io.ReadCloser, error) /* Get io.Reader */
-	Path() string                      /* Path relative to project root directory */
+	GetReadCloser() (io.ReadCloser, error) /* Get io.ReadCloser */
+	PackagePath() string                   /* Path relative to package root */
 }
 
 var commands = []*Command{
@@ -73,7 +76,11 @@ func main() {
 	}
 	for _, cmd := range commands {
 		if cmd.Name == args[0] {
-			cmd.Flag.Parse(args[1:])
+			err = cmd.Flag.Parse(args[1:])
+			if err != nil {
+				fmt.Print(err)
+				os.Exit(1)
+			}
 			cmd.Run(ctx)
 			os.Exit(0)
 		}

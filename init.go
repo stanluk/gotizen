@@ -17,25 +17,14 @@ var initCmd = &Command{
 	`,
 }
 
-// validates if given directory contains Tizen project files
-func hasTizenProjectFiles(rootPath string, files []PackageFile) bool {
-	for _, pf := range files {
-		full_path := filepath.Join(rootPath, pf.Path())
-		if _, err := os.Stat(full_path); err == nil || !os.IsNotExist(err) {
-			return true
-		}
-	}
-	return false
-}
-
 // creates all project files
 func createFile(rootdir string, file PackageFile) error {
-	full_path := filepath.Join(rootdir, file.Path())
-	f, err := os.Create(full_path)
+	fullPath := filepath.Join(rootdir, file.PackagePath())
+	f, err := os.Create(fullPath)
 	if err != nil {
-		return fmt.Errorf("Unable to write %s, aborting\n", file.Path())
+		return fmt.Errorf("Unable to write %s, aborting\n", file.PackagePath())
 	}
-	reader, err := file.GetReader()
+	reader, err := file.GetReadCloser()
 	if err != nil {
 		return fmt.Errorf("Unable to get reader")
 	}
@@ -43,8 +32,8 @@ func createFile(rootdir string, file PackageFile) error {
 	if err != nil {
 		return fmt.Errorf("Copy failed")
 	}
-	reader.Close()
-	fmt.Println("Created: ", file.Path())
+	err = reader.Close()
+	fmt.Println("Created: ", file.PackagePath())
 	return f.Close()
 }
 

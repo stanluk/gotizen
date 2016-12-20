@@ -29,18 +29,18 @@ var (
 )
 
 type reference struct {
-	Uri    string
+	URI    string
 	Digest string
 }
 
 func NewSignature(name SignatureType, files []PackageFile) (sig *Signature, err error) {
 	sig = &Signature{}
 	for _, file := range files {
-		rc, err := file.GetReader()
+		rc, err := file.GetReadCloser()
 		if err != nil {
 			return nil, err
 		}
-		ref, err := createReference(file.Path(), rc)
+		ref, err := createReference(file.PackagePath(), rc)
 		rc.Close()
 		if err != nil {
 			return nil, err
@@ -51,8 +51,8 @@ func NewSignature(name SignatureType, files []PackageFile) (sig *Signature, err 
 	return sig, nil
 }
 
-func (this *Signature) Path() string {
-	return string(this.name)
+func (sign *Signature) PackagePath() string {
+	return string(sign.name)
 }
 
 // simple wrapper aroung bytes.Buffer to support io.ReadCloser
@@ -60,34 +60,34 @@ type signatureBuffer struct {
 	*bytes.Buffer
 }
 
-func (this *signatureBuffer) Close() error {
+func (sign *signatureBuffer) Close() error {
 	return nil
 }
 
-func (this *Signature) GetReader() (io.ReadCloser, error) {
+func (sign *Signature) GetReadCloser() (io.ReadCloser, error) {
 	buf := &bytes.Buffer{}
 
-	if this.name == AuthorSignature {
-		if err := authorSignatureTmpl.Execute(buf, this.references); err != nil {
-			return nil, fmt.Errorf("Template execute failed: ", err)
+	if sign.name == AuthorSignature {
+		if err := authorSignatureTmpl.Execute(buf, sign.references); err != nil {
+			return nil, fmt.Errorf("Template execute failed: %v", err)
 		}
-	} else if this.name == DistributorSignature {
-		if err := distributorSignatureTmpl.Execute(buf, this.references); err != nil {
-			return nil, fmt.Errorf("Template execute failed: ", err)
+	} else if sign.name == DistributorSignature {
+		if err := distributorSignatureTmpl.Execute(buf, sign.references); err != nil {
+			return nil, fmt.Errorf("Template execute failed: %v", err)
 		}
 	}
 	file, err := ioutil.TempFile("/tmp/", "signtmp")
 	if err != nil {
-		return nil, fmt.Errorf("TempFile failed: ", err)
+		return nil, fmt.Errorf("TempFile failed: %v", err)
 	}
 	_, err = io.Copy(file, buf)
 	if err != nil {
 		file.Close()
-		return nil, fmt.Errorf("TempFile failed: ", err)
+		return nil, fmt.Errorf("TempFile failed: %v", err)
 	}
 	file.Sync()
 	log.Print("Opening file: ", file.Name())
-	cmd := exec.Command("xmlsec1", "--sign", "--output", this.Path(), "--pkcs12", this.AuthorCertificate, "--pwd", this.AuthorPass, file.Name())
+	cmd := exec.Command("xmlsec1", "--sign", "--output", sign.PackagePath(), "--pkcs12", sign.AuthorCertificate, "--pwd", sign.AuthorPass, file.Name())
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err = cmd.Run()
@@ -95,9 +95,9 @@ func (this *Signature) GetReader() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Unable to run xmlsec1: %s", stderr.String())
 	}
-	file, err = os.Open(this.Path())
+	file, err = os.Open(sign.PackagePath())
 	if err != nil {
-		return nil, fmt.Errorf("Open failed: ", err)
+		return nil, fmt.Errorf("Open failed: %v", err)
 	}
 	return file, nil
 }
@@ -109,7 +109,7 @@ func createReference(uri string, reader io.Reader) (*reference, error) {
 		return nil, fmt.Errorf("Unable to append reference: %v", err)
 	}
 	checksum := sha256.Sum256(bytes)
-	ref.Uri = uri
+	ref.URI = uri
 	ref.Digest = base64.StdEncoding.EncodeToString([]byte(checksum[:]))
 
 	return &ref, nil
