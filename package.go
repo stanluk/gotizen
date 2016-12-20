@@ -73,6 +73,22 @@ func makeFileList(manifest *TizenManifest) (files []PackageFile) {
 			files = append(files, &df)
 		}
 	}
+	for _, p := range manifest.ServiceAppEntries {
+		// 1. Binary files
+		if p.Exec != "" {
+			var df diskFile
+			df.path = path.Join(BinDir, p.Exec)
+			df.realPath = p.Exec
+			files = append(files, &df)
+		}
+		// 2. Icons
+		if p.Icon != "" {
+			var df diskFile
+			df.path = path.Join(ResDir, p.Icon)
+			df.realPath = p.Icon
+			files = append(files, &df)
+		}
+	}
 
 	// 3. append manifest itself
 	files = append(files, manifest)
