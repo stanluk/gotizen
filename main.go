@@ -1,9 +1,9 @@
 package main
 
 import (
+	"encoding"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"text/template"
@@ -19,11 +19,11 @@ type Command struct {
 	Long      string
 }
 
-// PackageFile interface should be inmplemented by a entity
+// PackageFile interface should be implemented by a entity
 // that can be containted in tizen package.
 type PackageFile interface {
-	GetReadCloser() (io.ReadCloser, error) /* Get io.ReadCloser */
-	PackagePath() string                   /* Path relative to package root */
+	encoding.BinaryMarshaler
+	PackagePath() string /* Path relative to package root */
 }
 
 var commands = []*Command{

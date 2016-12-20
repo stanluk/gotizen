@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -67,31 +66,20 @@ func NewTizenManifest(name string) *TizenManifest {
 	}
 }
 
-type manifestReaderCloser struct {
-	*bytes.Buffer
-}
-
-func (manif *manifestReaderCloser) Close() error {
-	return nil
-}
-
-func (manif *TizenManifest) GetReadCloser() (io.ReadCloser, error) {
+func (manif *TizenManifest) MarshalBinary() ([]byte, error) {
 	buf, err := xml.MarshalIndent(manif, "", "  ")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("MarshalIndent failed\n%v", err)
 	}
-	return &manifestReaderCloser{Buffer: bytes.NewBuffer(buf)}, nil
+	return buf, nil
+}
+
+func LoadManifest(reader io.Reader) (*TizenManifest, error) {
+	manif := &TizenManifest{}
+	dec := xml.NewDecoder(reader)
+	return manif, dec.Decode(manif)
 }
 
 func (manif *TizenManifest) PackagePath() string {
 	return TizenManifestDefaultPath
-}
-
-// LoadManifest constructs TizenManifest structure form binary
-// xml representation
-func LoadManifest(reader io.Reader) (*TizenManifest, error) {
-	var manifest TizenManifest
-	dec := xml.NewDecoder(reader)
-	err := dec.Decode(&manifest)
-	return &manifest, err
 }

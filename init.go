@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,22 +17,21 @@ var initCmd = &Command{
 }
 
 // creates all project files
-func createFile(rootdir string, file PackageFile) error {
-	fullPath := filepath.Join(rootdir, file.PackagePath())
-	f, err := os.Create(fullPath)
+func createFile(path string, file PackageFile) error {
+	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("Unable to write %s, aborting\n", file.PackagePath())
 	}
-	reader, err := file.GetReadCloser()
+	bytes, err := file.MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("Unable to get reader")
+		f.Close()
+		return fmt.Errorf("Marshaling %s failed.\n%v", file.PackagePath(), err)
 	}
-	_, err = io.Copy(f, reader)
+	_, err = f.Write(bytes)
 	if err != nil {
-		return fmt.Errorf("Copy failed")
+		f.Close()
+		return fmt.Errorf("File write failed")
 	}
-	err = reader.Close()
-	fmt.Println("Created: ", file.PackagePath())
 	return f.Close()
 }
 
@@ -49,7 +47,8 @@ func initProject(context *Context) {
 
 	// create project files
 	for _, pf := range defaultProjectFiles {
-		if err := createFile(context.ProjectRootPath, pf); err != nil {
+		fullPath := filepath.Join(context.ProjectRootPath, pf.PackagePath())
+		if err := createFile(fullPath, pf); err != nil {
 			log.Fatal("Unable to create Tizen project files: ", err)
 		}
 	}

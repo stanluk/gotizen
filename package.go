@@ -28,12 +28,6 @@ const (
 	ResDir = "res"
 )
 
-type diskFile struct {
-	realPath string // path relative to project root dir
-	path     string // path relative to package root dir
-	file     *os.File
-}
-
 func init() {
 	packageCmd.Flag.StringVar(&authorCertificateFile, "author-cert", "", "Security profile used to sign package")
 	packageCmd.Flag.StringVar(&authorCertificatePass, "author-passwd", "", "Security profile used to sign package")
@@ -41,83 +35,72 @@ func init() {
 	packageCmd.Flag.StringVar(&distributorCertificatePass, "dist-passwd", "", "Security profile used to sign package")
 }
 
-func (this *diskFile) PackagePath() string {
-	return this.path
+// makeFileListFromAppsList parses list of Application structure
+// and constructs list of DiskFiles
+func makeFileListFromAppsList(list []Application) (files []PackageFile, err error) {
+	for _, p := range list {
+		// 1. Binary files
+		if p.Exec != "" {
+			df, err := NewDiskFile(path.Join(BinDir, p.Exec))
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, df)
+		}
+		// 2. Icons
+		if p.Icon != "" {
+			df, err := NewDiskFile(path.Join(ResDir, p.Icon))
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, df)
+		}
+	}
+	return files, nil
 }
 
-func (this *diskFile) GetReadCloser() (io.ReadCloser, error) {
-	file, err := os.Open(this.realPath)
+// makeFileList creates a list of files to be packed into tpk package.
+// gotizen do not use any hand-crafted build configuration files like Makfile,
+// CMakeList.txt or similar, so only source of information about package files
+// is tizen-manifest.xml
+func makeFileList(manifest *TizenManifest) (files []PackageFile, err error) {
+	list, err := makeFileListFromAppsList(manifest.UIAppEntries)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to write file content: %v", err)
+		return nil, err
 	}
-	return file, nil
-}
+	files = append(files, list...)
+	list, err = makeFileListFromAppsList(manifest.ServiceAppEntries)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, list...)
 
-// create a list of package files described in manifest
-// gotizen do not use any hand-creafted build configuration files,
-// so only source of information about packages is tizen-manifest.xml
-func makeFileList(manifest *TizenManifest) (files []PackageFile) {
-	for _, p := range manifest.UIAppEntries {
-		// 1. Binary files
-		if p.Exec != "" {
-			var df diskFile
-			df.path = path.Join(BinDir, p.Exec)
-			df.realPath = p.Exec
-			files = append(files, &df)
-		}
-		// 2. Icons
-		if p.Icon != "" {
-			var df diskFile
-			df.path = path.Join(ResDir, p.Icon)
-			df.realPath = p.Icon
-			files = append(files, &df)
-		}
-	}
-	for _, p := range manifest.ServiceAppEntries {
-		// 1. Binary files
-		if p.Exec != "" {
-			var df diskFile
-			df.path = path.Join(BinDir, p.Exec)
-			df.realPath = p.Exec
-			files = append(files, &df)
-		}
-		// 2. Icons
-		if p.Icon != "" {
-			var df diskFile
-			df.path = path.Join(ResDir, p.Icon)
-			df.realPath = p.Icon
-			files = append(files, &df)
-		}
-	}
-
-	// 3. append manifest itself
+	// append manifest itself
 	files = append(files, manifest)
-	return files
+	return files, nil
 }
 
 // writePackageFiles creates new zip package
 // and writes raw byte content if files into 'out' writer.
 func writePackageFiles(files []PackageFile, out io.Writer) error {
 	arch := zip.NewWriter(out)
+	defer arch.Close()
+
 	for _, file := range files {
 		w, err := arch.Create(file.PackagePath())
 		if err != nil {
-			return fmt.Errorf("Unable to create archive: %v", err)
+			return fmt.Errorf("Unable to create archive\n%v", err)
 		}
-		reader, err := file.GetReadCloser()
+		bytes, err := file.MarshalBinary()
 		if err != nil {
-			return fmt.Errorf("Unable to get reader %v", err)
+			return fmt.Errorf("Unable to get binary data\n%v", err)
 		}
-		_, err = io.Copy(w, reader)
+		_, err = w.Write(bytes)
 		if err != nil {
-			return fmt.Errorf("Copy failed")
-		}
-		reader.Close()
-		if err != nil {
-			return fmt.Errorf("Unable to create archive: %v", err)
+			return fmt.Errorf("Write failed\n%v", err)
 		}
 	}
-	return arch.Close()
+	return nil
 }
 
 func createSignature(name SignatureType, files []PackageFile) (*Signature, error) {
@@ -147,7 +130,10 @@ func MakePkg(context *Context) {
 	}
 	defer zip.Close()
 
-	all_files := makeFileList(context.Manifest)
+	all_files, err := makeFileList(context.Manifest)
+	if err != nil {
+		log.Fatal("Failed to create files list\n", err)
+	}
 
 	authorSignature, err := createSignature(AuthorSignature, all_files)
 	if err != nil {
@@ -163,7 +149,7 @@ func MakePkg(context *Context) {
 
 	err = writePackageFiles(all_files, zip)
 	if err != nil {
-		log.Fatalf("Unable to create '%s' file: %v", zip.Name(), err)
+		log.Fatalf("Unable to create '%s' file\n%v", zip.Name(), err)
 	}
 	fmt.Printf("Created %s in %s\n", zip.Name(), context.ProjectRootPath)
 }

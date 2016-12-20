@@ -36,12 +36,11 @@ type reference struct {
 func NewSignature(name SignatureType, files []PackageFile) (sig *Signature, err error) {
 	sig = &Signature{}
 	for _, file := range files {
-		rc, err := file.GetReadCloser()
+		data, err := file.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		ref, err := createReference(file.PackagePath(), rc)
-		rc.Close()
+		ref, err := createReference(file.PackagePath(), data)
 		if err != nil {
 			return nil, err
 		}
@@ -55,16 +54,7 @@ func (sign *Signature) PackagePath() string {
 	return string(sign.name)
 }
 
-// simple wrapper aroung bytes.Buffer to support io.ReadCloser
-type signatureBuffer struct {
-	*bytes.Buffer
-}
-
-func (sign *signatureBuffer) Close() error {
-	return nil
-}
-
-func (sign *Signature) GetReadCloser() (io.ReadCloser, error) {
+func (sign *Signature) MarshalBinary() ([]byte, error) {
 	buf := &bytes.Buffer{}
 
 	if sign.name == AuthorSignature {
@@ -99,19 +89,19 @@ func (sign *Signature) GetReadCloser() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Open failed: %v", err)
 	}
-	return file, nil
+	defer file.Close()
+	bytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("ReadAll failed\n%v", err)
+	}
+	return bytes, nil
 }
 
-func createReference(uri string, reader io.Reader) (*reference, error) {
+func createReference(uri string, data []byte) (*reference, error) {
 	var ref reference
-	bytes, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to append reference: %v", err)
-	}
-	checksum := sha256.Sum256(bytes)
+	checksum := sha256.Sum256(data)
 	ref.URI = uri
 	ref.Digest = base64.StdEncoding.EncodeToString([]byte(checksum[:]))
-
 	return &ref, nil
 }
 
@@ -121,7 +111,7 @@ var authorSignatureTmpl = template.Must(template.New("author-signature").Parse(`
 <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></CanonicalizationMethod>
 <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod>
 {{range .}}
-<Reference URI="{{.Uri}}">
+<Reference URI="{{.URI}}">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod>
 <DigestValue>{{.Digest}}</DigestValue>
 </Reference>
@@ -152,7 +142,7 @@ var distributorSignatureTmpl = template.Must(template.New("signature1").Parse(`
 <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></CanonicalizationMethod>
 <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod>
 {{range .}}
-<Reference URI="{{.Uri}}">
+<Reference URI="{{.URI}}">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod>
 <DigestValue>{{.Digest}}</DigestValue>
 </Reference>
