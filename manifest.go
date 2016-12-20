@@ -19,18 +19,18 @@ type TizenManifest struct {
 	PackageName       string        `xml:"package,attr"`
 	Api               string        `xml:"api-version,attr"`
 	Version           string        `xml:"version,attr"`
-	Profile           NameNode      `xml:"profile"`
+	Profile           NameAttr      `xml:"profile"`
 	UIAppEntries      []Application `xml:"ui-application"`
 	ServiceAppEntries []Application `xml:"service-application"`
 	Privileges        []string      `xml:"privileges>privilege"`
 	XMLNS             string        `xml:"xmlns,attr"`
 }
 
-type NameNode struct {
+type NameAttr struct {
 	Name string `xml:"name,attr"`
 }
 
-type ValueNode struct {
+type ValueAttr struct {
 	Name string `xml:"value,attr"`
 }
 
@@ -48,10 +48,10 @@ type Application struct {
 	Multiple           bool      `xml:"multiple,attr"`
 	NoDisplay          bool      `xml:"nodisplay,attr"`
 	TaskManage         bool      `xml:"taskmanage,attr"`
-	Category           NameNode  `xml:"category,omitempty"`
+	Category           NameAttr  `xml:"category,omitempty"`
 	Icon               string    `xml:"icon,omitempty"`
 	Type               UIAppType `xml:"type,attr"`
-	BackgroundCategory ValueNode `xml:"background-category"`
+	BackgroundCategory ValueAttr `xml:"background-category"`
 }
 
 func NewTizenManifest(name string) *TizenManifest {
@@ -59,10 +59,10 @@ func NewTizenManifest(name string) *TizenManifest {
 		PackageName: fmt.Sprintf("org.tizen.%s", name),
 		Api:         "3.0",
 		Version:     "0.0.1",
-		Profile:     NameNode{"mobile"},
+		Profile:     NameAttr{"mobile"},
 		XMLNS:       tizenNamespace,
 		ServiceAppEntries: []Application{{AppId: fmt.Sprintf("org.tizen.%s", name), Exec: name,
-			LaunchMode: LaunchModeSingle, Multiple: false, NoDisplay: false, TaskManage: true, Type: Capp, BackgroundCategory: ValueNode{"system"}}},
+			LaunchMode: LaunchModeSingle, Multiple: false, NoDisplay: false, TaskManage: true, Type: Capp, BackgroundCategory: ValueAttr{"system"}}},
 	}
 }
 
