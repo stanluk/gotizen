@@ -55,13 +55,14 @@ type Application struct {
 }
 
 func NewTizenManifest(name string) *TizenManifest {
+	packageName := fmt.Sprintf("org.tizen.%s", name)
 	return &TizenManifest{
-		PackageName: fmt.Sprintf("org.tizen.%s", name),
+		PackageName: packageName,
 		Api:         "3.0",
 		Version:     "0.0.1",
 		Profile:     NameAttr{"mobile"},
 		XMLNS:       tizenNamespace,
-		ServiceAppEntries: []Application{{AppId: fmt.Sprintf("org.tizen.%s", name), Exec: name,
+		ServiceAppEntries: []Application{{AppId: packageName, Exec: name,
 			LaunchMode: LaunchModeSingle, Multiple: false, NoDisplay: false, TaskManage: true, Type: Capp, BackgroundCategory: ValueAttr{"system"}}},
 	}
 }
