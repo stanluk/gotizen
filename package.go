@@ -9,10 +9,10 @@ import (
 	"path"
 )
 
-var authorCertificateFile string      // indentifier of security profile
-var authorCertificatePass string      // indentifier of security profile
-var distributorCertificateFile string // indentifier of security profile
-var distributorCertificatePass string // indentifier of security profile
+var authorCertificateFile string      // author certificate file
+var authorCertificatePass string      // author certificate password
+var distributorCertificateFile string // distributor certificate file
+var distributorCertificatePass string // distributor certificate passowrd
 
 var packageCmd = &Command{
 	Run:       MakePkg,
@@ -58,17 +58,18 @@ func (this *diskFile) GetReader() (io.ReadCloser, error) {
 // so only source of information about packages is tizen-manifest.xml
 func makeFileList(manifest *TizenManifest) (files []PackageFile) {
 	for _, p := range manifest.UIAppEntries {
-		var df diskFile
 		// 1. Binary files
 		if p.Exec != "" {
+			var df diskFile
 			df.path = path.Join(BinDir, p.Exec)
 			df.realPath = p.Exec
 			files = append(files, &df)
 		}
 		// 2. Icons
 		if p.Icon != "" {
-			df.path = path.Join(ResDir, p.Exec)
-			df.realPath = p.Exec
+			var df diskFile
+			df.path = path.Join(ResDir, p.Icon)
+			df.realPath = p.Icon
 			files = append(files, &df)
 		}
 	}

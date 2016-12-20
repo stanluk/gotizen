@@ -44,8 +44,8 @@ type UIApplication struct {
 	Multiple   bool      `xml:"multiple,attr"`
 	NoDisplay  bool      `xml:"nodisplay,attr"`
 	TaskManage bool      `xml:"taskmanage,attr"`
-	Category   NameNode  `xml:"category"`
-	Icon       string    `xml:"icon"`
+	Category   NameNode  `xml:"category,omitempty"`
+	Icon       string    `xml:"icon,omitempty"`
 	Type       UIAppType `xml:"type,attr"`
 }
 
