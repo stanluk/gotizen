@@ -24,8 +24,8 @@ var packageCmd = &Command{
 }
 
 const (
-	BinDir = "bin"
-	ResDir = "res"
+	BinDir    = "bin"
+	SharedDir = "shared"
 )
 
 func init() {
@@ -49,7 +49,7 @@ func makeFileListFromAppsList(list []Application) (files []PackageFile, err erro
 		}
 		// 2. Icons
 		if p.Icon != "" {
-			df, err := NewDiskFile(path.Join(ResDir, p.Icon))
+			df, err := NewDiskFile(path.Join(SharedDir, p.Icon))
 			if err != nil {
 				return nil, err
 			}

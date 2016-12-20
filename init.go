@@ -16,6 +16,11 @@ var initCmd = &Command{
 	`,
 }
 
+var projectDirs = []string{
+	"bin",
+	"shared",
+}
+
 // creates all project files
 func createFile(path string, file PackageFile) error {
 	f, err := os.Create(path)
@@ -43,8 +48,15 @@ func initProject(context *Context) {
 
 	defaultProjectFiles := make([]PackageFile, 1)
 	defaultProjectFiles[0] = defaultManifest
-	fmt.Println("Initialized empty Tizen project in: ", context.ProjectRootPath)
 
+	// create project dirs
+	for _, dir := range projectDirs {
+		fullPath := filepath.Join(context.ProjectRootPath, dir)
+		err := os.Mkdir(fullPath, 0777)
+		if err != nil {
+			log.Fatalf("Unable to create Tizen project directories\n%v", err)
+		}
+	}
 	// create project files
 	for _, pf := range defaultProjectFiles {
 		fullPath := filepath.Join(context.ProjectRootPath, pf.PackagePath())
@@ -52,4 +64,5 @@ func initProject(context *Context) {
 			log.Fatal("Unable to create Tizen project files: ", err)
 		}
 	}
+	fmt.Println("Initialized empty Tizen project in: ", context.ProjectRootPath)
 }
