@@ -22,6 +22,7 @@ type TizenManifest struct {
 	Profile      NameNode        `xml:"profile"`
 	UIAppEntries []UIApplication `xml:"ui-application"`
 	Privileges   []string        `xml:"privileges>privilege"`
+	XMLNS        string          `xml:"xmlns,attr"`
 }
 
 type NameNode struct {
@@ -45,6 +46,7 @@ func NewTizenManifest(name string) *TizenManifest {
 		Api:         "3.0",
 		Version:     "0.0.1",
 		Profile:     NameNode{"mobile"},
+		XMLNS:       "http://tizen.org/ns/packages",
 		UIAppEntries: []UIApplication{{AppId: fmt.Sprintf("org.tizen.%s", name), Exec: name,
 			LaunchMode: LaunchModeSingle, Multiple: false, NoDisplay: false, TaskManage: true}},
 	}
