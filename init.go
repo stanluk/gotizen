@@ -50,17 +50,17 @@ func createFile(rootdir string, file PackageFile) error {
 
 func initProject(context *Context) {
 	if context.Manifest != nil {
-		log.Fatalf("Tizen mainfest found in %s. Unable to init project.\n", context.ProjectPath)
+		log.Fatalf("Tizen mainfest found in %s. Unable to init project.\n", context.ProjectRootPath)
 	}
-	defaultManifest := NewTizenManifest(filepath.Base(context.ProjectPath))
+	defaultManifest := NewTizenManifest(filepath.Base(context.ProjectRootPath))
 
 	defaultProjectFiles := make([]PackageFile, 1)
 	defaultProjectFiles[0] = defaultManifest
-	fmt.Println("Initialized empty Tizen project in: ", context.ProjectPath)
+	fmt.Println("Initialized empty Tizen project in: ", context.ProjectRootPath)
 
 	// create project files
 	for _, pf := range defaultProjectFiles {
-		if err := createFile(context.ProjectPath, pf); err != nil {
+		if err := createFile(context.ProjectRootPath, pf); err != nil {
 			log.Fatal("Unable to create Tizen project files: ", err)
 		}
 	}

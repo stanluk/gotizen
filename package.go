@@ -113,7 +113,7 @@ func createSignature(profile string, files []PackageFile) (*Signature, error) {
 
 func MakePkg(context *Context) {
 	if context.Manifest == nil {
-		log.Fatal("No manifest file found in ", context.ProjectPath)
+		log.Fatal("No manifest file found in ", context.ProjectRootPath)
 	}
 	zip, err := os.OpenFile(context.Manifest.PackageName+".tpk", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -133,5 +133,5 @@ func MakePkg(context *Context) {
 	if err != nil {
 		log.Fatalf("Unable to create '%s' file: %v", zip.Name(), err)
 	}
-	fmt.Printf("Created %s in %s\n", zip.Name(), context.ProjectPath)
+	fmt.Printf("Created %s in %s\n", zip.Name(), context.ProjectRootPath)
 }

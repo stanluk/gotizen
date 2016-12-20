@@ -7,8 +7,8 @@ import (
 )
 
 type Context struct {
-	ProjectPath string         /* Absolute path to project's root directory */
-	Manifest    *TizenManifest /* Project manifest, may be null */
+	ProjectRootPath string         /* Absolute path to project's root directory */
+	Manifest        *TizenManifest /* Project manifest, may be null */
 }
 
 func BuildContext(projectPath string) (*Context, error) {
@@ -25,5 +25,5 @@ func BuildContext(projectPath string) (*Context, error) {
 		file.Close()
 	}
 
-	return &Context{ProjectPath: full_path, Manifest: manifest}, nil
+	return &Context{ProjectRootPath: full_path, Manifest: manifest}, nil
 }
