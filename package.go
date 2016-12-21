@@ -139,7 +139,7 @@ func MakePkg(context *Context) {
 	if context.Manifest == nil {
 		log.Fatal("No manifest file found in ", context.ProjectRootPath)
 	}
-	zip, err := os.OpenFile(context.Manifest.PackageName+".tpk", os.O_CREATE|os.O_RDWR, 0644)
+	zip, err := os.Create(context.Manifest.PackageName + ".tpk")
 	if err != nil {
 		log.Fatal("Unable to create 'tpk' file: ", err)
 	}
